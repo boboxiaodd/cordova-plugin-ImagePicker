@@ -31,15 +31,15 @@
     _enablePickingGif = true;
     _enablePickingOriginalPhoto = true;
     _enableShowSheet = false;
-    _enableCrop = false;
+    _enableCrop = true;
     _enableCircleCrop = false;
     _enablePickingMuitlpleVideo = true;
     _enableSelectedIndex = true;
     
     _maxCountTF = 9;
     _columnNumberTF = 4;
-    _width = 720;
-    _height = 960;
+    _width = 500;
+    _height = 500;
     _quality = 80;
 
 }
@@ -101,13 +101,19 @@
     /// 5. Single selection mode, valid when maxImagesCount = 1
     /// 5. 单选模式,maxImagesCount为1时才生效
     imagePickerVc.showSelectBtn = NO;
-    imagePickerVc.allowCrop = self.enableCrop;
+    if(self.width > 0){
+        imagePickerVc.allowCrop = YES;
+        NSInteger left = 30;
+        NSInteger widthHeight = imagePickerVc.view.tz_width - 2 * left;
+        NSInteger top = (imagePickerVc.view.tz_height - widthHeight) / 2;
+        imagePickerVc.cropRect = CGRectMake(left, top, widthHeight, widthHeight);
+    }else{
+        imagePickerVc.allowCrop = NO;
+    }
     imagePickerVc.needCircleCrop = self.enableCircleCrop;
     // 设置竖屏下的裁剪尺寸
-    //NSInteger left = 30;
-    //NSInteger widthHeight = self.view.tz_width - 2 * left;
-    //NSInteger top = (self.view.tz_height - widthHeight) / 2;
-    //imagePickerVc.cropRect = CGRectMake(left, top, widthHeight, widthHeight);
+    
+
     // 设置横屏下的裁剪尺寸
     // imagePickerVc.cropRectLandscape = CGRectMake((self.view.tz_height - widthHeight) / 2, left, widthHeight, widthHeight);
     /*
@@ -162,44 +168,46 @@
             }
             else {
                 
-                /*NSMutableArray *pathsArr = [[NSMutableArray alloc] init];
-                
-                for(int i=0; i<[photos count]; i++) {
-                    UIImage *photo = photos[i];
-                    id asset = assets[i];
+                if(self.width > 0){  //截图模式
+                    NSMutableArray *pathsArr = [[NSMutableArray alloc] init];
                     
-                    NSString *fileName = [self getFileNameForAsset:asset];
+                    for(int i=0; i<[photos count]; i++) {
+                        UIImage *photo = photos[i];
+                        id asset = assets[i];
+                     
+                        NSString *fileName = [self getFileNameForAsset:asset];
+                     
+                        NSString *filePath = [self saveImgToFile:photo withName:fileName];
+                     
+                        [pathsArr addObject: filePath];
+                    }
                     
-                    NSString *filePath = [self saveImgToFile:photo withName:fileName];
-                    
-                    [pathsArr addObject: filePath];
-                }
-                
-                if([pathsArr count] != 0 && [pathsArr count] == [photos count]) {
-                    NSDictionary* result = @{@"images": pathsArr, @"isOrigin": @(NO)};
-                    
-                    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
-                    
-                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-                }
-                
-                _isSelectOriginalPhoto = FALSE;*/
-                
-                
-                __block NSMutableArray *pathsArr = [[NSMutableArray alloc] init];
-                
-                [self saveCompressImage:assets currentIdx:0 compressedPathArray:pathsArr completion:^(NSMutableArray *paths) {
-                    
-                    NSLog(@"All finished.");
-                    
-                    NSDictionary* result = @{@"images": paths, @"isOrigin": @(NO)};
-                    
-                    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
-                    
-                    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                    if([pathsArr count] != 0 && [pathsArr count] == [photos count]) {
+                        NSDictionary* result = @{@"images": pathsArr, @"isOrigin": @(NO)};
+                     
+                        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+                     
+                        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+                    }
                     
                     _isSelectOriginalPhoto = FALSE;
-                }];
+                    
+                }else{  //非截图模式
+                    __block NSMutableArray *pathsArr = [[NSMutableArray alloc] init];
+
+                    [self saveCompressImage:assets currentIdx:0 compressedPathArray:pathsArr completion:^(NSMutableArray *paths) {
+
+                        NSLog(@"All finished.");
+
+                        NSDictionary* result = @{@"images": paths, @"isOrigin": @(NO)};
+
+                        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:result];
+
+                        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+
+                        _isSelectOriginalPhoto = FALSE;
+                    }];
+                }
             }
             
             _selectedAssets = nil;
@@ -290,7 +298,7 @@
         }
         else {
             [[TZImageManager manager] getOriginalPhotoWithAsset:asset completion:^(UIImage *photo, NSDictionary *info) {
-                
+            
                 NSData *compressed;
                 
                 if(maxWidth > 0 && maxHeight > 0 && quality > 0) {
@@ -300,7 +308,6 @@
                 else { // maxWidth 和 maxHeight 如果小于0，就自动压缩分辨率
                     compressed = [UIImage lubanCompressImage:photo];
                 }
-                
                 UIImage *newImage   = [UIImage imageWithData:compressed];
                 
                 NSString *fileName = [[[originName lastPathComponent] stringByDeletingPathExtension] stringByAppendingPathExtension:@"JPG"];
@@ -341,9 +348,9 @@
 }
     
 //保存JPG图片
-/*- (NSString *)saveImgToFile:(UIImage *)currentImage withName:(NSString*)imageName{
+- (NSString *)saveImgToFile:(UIImage *)currentImage withName:(NSString*)imageName{
 
-    NSData *imageData = UIImageJPEGRepresentation(currentImage, 1);
+    NSData *imageData = UIImageJPEGRepresentation(currentImage, self.quality/100.0);
 
     NSString *fileName = [[[imageName lastPathComponent] stringByDeletingPathExtension] stringByAppendingPathExtension:@"JPG"];
 
@@ -355,7 +362,7 @@
 
     return fullPath;
 
-}*/
+}
     
 //保存原始图片
 - (NSString *)saveNSDataToFile:(NSData *)imageData withName:(NSString*)imageName{
